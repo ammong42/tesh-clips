@@ -35,6 +35,8 @@ Missing key, inaccessible/missing playlist, quota/403 denial, timeout/network er
 
 The importer prints a recognized Google/YouTube `reason` with instructions. For an IP restriction error, it also reports **Google's observed caller IP** when the response supplies a valid IP literal. Raw API messages, project identifiers, request URLs and key values are never printed. Check **the Google Cloud project that owns your key**, selected in the Console's project picker; enabling the API in a different project does not help this key.
 
+The importer sends the key as the **`key` query parameter** documented in [Google's official YouTube discovery specification](https://github.com/googleapis/google-api-nodejs-client/blob/main/discovery/youtube-v3.json). Earlier revisions used only an `X-Goog-Api-Key` header. If IP-block errors have changed to an unspecified/generic 403 or an unregistered-caller error, pull the latest `main` and retry before changing more key restrictions. URLs and low-level exceptions containing the key are never logged; do not share request URLs or enable HTTP tracing with a real key.
+
 | Reason                                               | Action in Google Cloud Console                                                                                                                                                      |
 | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SERVICE_DISABLED` / `accessNotConfigured`           | APIs & Services → Library → YouTube Data API v3 → Enable. Wait a few minutes, then retry.                                                                                           |
@@ -47,6 +49,8 @@ The importer prints a recognized Google/YouTube `reason` with instructions. For 
 | `unspecified`                                        | Google supplied no recognized specific reason. Check the API metrics/errors in that project and the key restrictions. Share only the sanitized diagnostic, never the key or `.env`. |
 
 Retry with `npm run import:playlist`. A 403 alone does not establish that the playlist is private or that the network allowlist is blocking access.
+
+`CREDENTIALS_MISSING` means the service did not recognize a credential; verify the latest importer and its printed credential source. `forbidden` is a generic denial, not proof of a private playlist or any particular restriction.
 
 If an IP update does not fix `API_KEY_IP_ADDRESS_BLOCKED`, use the **Google-observed caller IP** from the latest importer output. An external IP-check site can take a different route than requests to Google. Add the exact observed address to the key's application restrictions; keep the API restriction set to YouTube Data API v3. Do not add guessed networks or broad IP ranges. If Google provides no valid IP or reports an empty caller IP, the importer says so rather than inventing an address.
 

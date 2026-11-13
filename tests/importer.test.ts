@@ -59,8 +59,12 @@ describe("YouTube importer with mocked HTTP only", () => {
     expect(
       new URL(fetcher.mock.calls[1][0]).searchParams.get("pageToken"),
     ).toBe("page2");
-    expect(fetcher.mock.calls[0][0]).not.toContain(key);
-    expect(fetcher.mock.calls[0][1].headers["X-Goog-Api-Key"]).toBe(key);
+    // Assert the documented auth contract on every page and video batch. A
+    // permissive mock would otherwise accept the wrong credential transport.
+    for (const [url, init] of fetcher.mock.calls) {
+      expect(new URL(url).searchParams.get("key")).toBe(key);
+      expect(init.headers).toBeUndefined();
+    }
     expect(report.skipped).toEqual({
       duplicate: 1,
       invalidOrMissingId: 1,
@@ -136,6 +140,8 @@ describe("YouTube importer with mocked HTTP only", () => {
     ["keyInvalid", "errors", /already-exported YOUTUBE_API_KEY/],
     ["API_KEY_EXPIRED", "details", /expired/],
     ["playlistItemsNotAccessible", "errors", /owner-authorized OAuth/],
+    ["CREDENTIALS_MISSING", "details", /key query parameter/],
+    ["forbidden", "errors", /generic reason does not identify/],
   ])(
     "diagnoses %s from %s without printing raw API data",
     async (reason, source, guidance) => {
@@ -301,6 +307,31 @@ describe("YouTube importer with mocked HTTP only", () => {
         fetcher: async () => new Response("<html>"),
       }),
     ).rejects.toThrow(/non-JSON/);
+  });
+  it("never includes the credential-bearing URL or echoed API response in diagnostics", async () => {
+    for (const mode of ["network", "response"] as const) {
+      const error = await importPlaylist({
+        apiKey: key,
+        fetcher: async (url) => {
+          expect(new URL(url).searchParams.get("key")).toBe(key);
+          if (mode === "network") throw new Error(`Failed request: ${url}`);
+          return response(
+            {
+              error: {
+                errors: [{ reason: "forbidden", message: url }],
+                message: url,
+              },
+            },
+            403,
+          );
+        },
+      }).catch((e: Error) => e);
+      expect(error).toBeInstanceOf(Error);
+      if (!(error instanceof Error)) throw new Error("Expected import to fail");
+      expect(error.message).not.toContain(key);
+      expect(error.message).not.toContain("https://www.googleapis.com");
+      expect(error.message).not.toContain("?key=");
+    }
   });
   it("rejects repeated page tokens and incomplete video metadata", async () => {
     await expect(

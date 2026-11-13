@@ -66,6 +66,10 @@ const ACCESS_DIAGNOSTICS = {
     "This API key has expired. Replace it with an active key in your ignored .env file or existing YOUTUBE_API_KEY environment binding.",
   playlistItemsNotAccessible:
     "The playlist items are not accessible with this API key. Verify playlist visibility and the playlist ID. Private playlists require owner-authorized OAuth, which this API-key importer does not support.",
+  CREDENTIALS_MISSING:
+    "YouTube did not recognize a caller credential. Use the latest importer, which sends the key as YouTube's documented key query parameter, and check the printed credential source. Never print or share the request URL.",
+  forbidden:
+    "YouTube denied this request. This generic reason does not identify a particular setting: check API enablement, the active key's restrictions and playlist visibility. An unregistered-caller response can also indicate that the API did not recognize the supplied credential.",
 } as const;
 
 function callerIpDiagnostic(error: Record<string, unknown>): string {
@@ -157,10 +161,14 @@ export async function importPlaylist({
     const url = new URL(`https://www.googleapis.com/youtube/v3/${endpoint}`);
     for (const [key, value] of Object.entries(params))
       url.searchParams.set(key, value);
+    // YouTube's official discovery spec declares API keys in the query, not
+    // only an X-Goog-Api-Key header. Never log this URL or low-level exceptions:
+    // both may now contain the key. Keep credentials developer-side and TLS on.
+    // https://github.com/googleapis/google-api-nodejs-client/blob/main/discovery/youtube-v3.json
+    url.searchParams.set("key", apiKey!);
     let response: Response;
     try {
       response = await fetcher(url.toString(), {
-        headers: { "X-Goog-Api-Key": apiKey! },
         signal: AbortSignal.timeout(30000),
       });
     } catch {
