@@ -1,0 +1,80 @@
+:root {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #324334;
+  background: #f7f5ef;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --forest: #294d3c;
+  --text: #324334;
+  --muted: #626d5e;
+  --line: #dce0d3;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 280px;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overflow-wrap: anywhere;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+a {
+  color: var(--forest);
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #846222;
+  outline-offset: 5px;
+}
+h1:focus {
+  outline: none;
+}
+.icon {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 20px;
+  background: #fff;
+  padding: 14px;
+  z-index: 100;
+  border: 2px solid var(--forest);
+  border-radius: 8px;
+}
+.skip-link:focus {
+  top: 14px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
