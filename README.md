@@ -23,13 +23,30 @@ The real catalog starts empty. No playlist content has been verified or invented
 2. In **APIs & Services → Library**, enable **YouTube Data API v3**.
 3. In **APIs & Services → Credentials**, create an **API key**. Restrict its API access to **YouTube Data API v3**. For this local Node CLI, use an IP-address application restriction matching your machine's outbound public IP if it is stable. Browser HTTP-referrer restrictions will not work for a Node CLI. For a cloud proxy, use the proxy's outbound IP. Never make the key public or use a `VITE_` prefix.
 4. Copy `.env.example` to `.env` and enter your key there (the file is git-ignored), or set `YOUTUBE_API_KEY` in the local process environment. Never paste a key into source code, commits, or chat.
-5. Allow HTTPS to `www.googleapis.com` through your environment's network settings if restricted. Keep TLS verification and inherited proxy/CA settings enabled. `npm run import:playlist` uses the supported Node environment-proxy option.
+5. If running inside a network-restricted **cloud environment**, allow HTTPS to `www.googleapis.com` in that environment's network settings. When running on your own computer, you normally do not need to change Codex's cloud settings. Keep TLS verification and inherited proxy/CA settings enabled. `npm run import:playlist` uses the supported Node environment-proxy option.
 6. Run `npm run import:playlist` from the repository. It paginates the configured playlist `PLPwjiJlz-ZBY`, fetches details in batches of 50, skips invalid/missing/private/non-embeddable videos, classifies metadata, and atomically replaces `data/clips.json` only after full validation. It does not filter by duration. The skipped-count/duration report is saved to ignored `data/import-report.json`.
 7. Run `npm run dev`. After a later manual refresh, reload the dev app or rerun `npm run build` for static output. No browser API key or public refresh endpoint is used.
 
 `playlistItems.list` and `videos.list` typically cost 1 quota unit per call. A project commonly starts with 10,000 units/day; verify current quota in Google Cloud. Quota resets at midnight Pacific time. One page and one detail batch cost approximately 2 units per 50 videos. A private playlist cannot be read by this API-key-only importer; ask its owner to make it accessible or supply a small catalog of **real, independently verified** IDs and metadata in the documented schema. OAuth is outside this prototype. Do not scrape or bypass restrictions.
 
 Missing key, inaccessible/missing playlist, quota/403 denial, timeout/network errors, malformed responses, and zero eligible clips all fail with diagnostics and preserve the prior catalog. Metadata embeddability is only a point-in-time signal: region, age, device and later privacy changes can still prevent playback.
+
+### Troubleshooting API access (HTTP 403)
+
+The importer prints a recognized Google/YouTube `reason` with instructions. Raw API messages, project identifiers, request URLs and key values are never printed. Check **the Google Cloud project that owns your key**, selected in the Console's project picker; enabling the API in a different project does not help this key.
+
+| Reason                                               | Action in Google Cloud Console                                                                                                                                                      |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SERVICE_DISABLED` / `accessNotConfigured`           | APIs & Services → Library → YouTube Data API v3 → Enable. Wait a few minutes, then retry.                                                                                           |
+| `API_KEY_SERVICE_BLOCKED`                            | APIs & Services → Credentials → your key → API restrictions → allow YouTube Data API v3. Save.                                                                                      |
+| `API_KEY_HTTP_REFERRER_BLOCKED`                      | The CLI is not a website. Use a separate CLI key restricted to YouTube Data API v3 and, when stable, your outbound public IP.                                                       |
+| `API_KEY_IP_ADDRESS_BLOCKED` / `ipRefererBlocked`    | Check application restrictions. The allowed IP must match the computer's outbound public IP; VPN/proxy use can change it. Website/referrer rules do not work for this Node CLI.     |
+| `API_KEY_INVALID` / `keyInvalid` / `API_KEY_EXPIRED` | Update the key in your ignored `.env` or existing exported `YOUTUBE_API_KEY`. An exported value takes precedence over `.env`.                                                       |
+| `playlistItemsNotAccessible`                         | Verify playlist ID/visibility. Private playlists require owner-authorized OAuth, which this importer does not support.                                                              |
+| Quota exhausted                                      | Review YouTube Data API v3 quota in that project; wait for reset or request appropriate quota.                                                                                      |
+| `unspecified`                                        | Google supplied no recognized specific reason. Check the API metrics/errors in that project and the key restrictions. Share only the sanitized diagnostic, never the key or `.env`. |
+
+Retry with `npm run import:playlist`. A 403 alone does not establish that the playlist is private or that the network allowlist is blocking access.
 
 ### Classification and corrections
 

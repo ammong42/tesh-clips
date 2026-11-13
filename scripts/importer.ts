@@ -42,21 +42,54 @@ export function durationSeconds(value: string): number | null {
     Number(m[4] || 0);
   return Number.isFinite(result) ? result : null;
 }
+// Only emit our own known reason labels/instructions, never API messages or raw
+// bodies: those can contain the key, request URLs, IPs, and project identifiers.
+const ACCESS_DIAGNOSTICS = {
+  SERVICE_DISABLED:
+    "Enable YouTube Data API v3 in the Google Cloud project that owns this API key (APIs & Services → Library). Enabling it in another project does not enable this key. Wait a few minutes after enabling, then retry.",
+  accessNotConfigured:
+    "Enable YouTube Data API v3 in the Google Cloud project that owns this API key (APIs & Services → Library). Enabling it in another project does not enable this key. Wait a few minutes after enabling, then retry.",
+  API_KEY_SERVICE_BLOCKED:
+    "Edit this key in Google Cloud → APIs & Services → Credentials. Under API restrictions, allow YouTube Data API v3.",
+  API_KEY_HTTP_REFERRER_BLOCKED:
+    "This key has website/referrer restrictions, which do not work for the Node importer. Use a separate CLI key restricted to YouTube Data API v3 and, when stable, your outbound public IP address.",
+  API_KEY_IP_ADDRESS_BLOCKED:
+    "This key's IP-address restriction does not match this computer's outbound public IP. Update the key's allowed IP in Google Cloud → APIs & Services → Credentials; a VPN/proxy can change the outbound IP.",
+  ipRefererBlocked:
+    "Check this key's application restrictions in Google Cloud → APIs & Services → Credentials. Website/referrer restrictions do not work for the Node importer; an IP restriction must match your outbound public IP (including any VPN/proxy).",
+  API_KEY_INVALID:
+    "The key was rejected. Copy the API key from Google Cloud → APIs & Services → Credentials into your ignored .env file. An already-exported YOUTUBE_API_KEY takes precedence over .env; update or unset that older binding before retrying.",
+  keyInvalid:
+    "The key was rejected. Copy the API key from Google Cloud → APIs & Services → Credentials into your ignored .env file. An already-exported YOUTUBE_API_KEY takes precedence over .env; update or unset that older binding before retrying.",
+  API_KEY_EXPIRED:
+    "This API key has expired. Replace it with an active key in your ignored .env file or existing YOUTUBE_API_KEY environment binding.",
+  playlistItemsNotAccessible:
+    "The playlist items are not accessible with this API key. Verify playlist visibility and the playlist ID. Private playlists require owner-authorized OAuth, which this API-key importer does not support.",
+} as const;
+
 const apiError = (status: number, body: unknown) => {
-  const reasons =
-    isRecord(body) && isRecord(body.error) && Array.isArray(body.error.errors)
-      ? body.error.errors.filter(isRecord).map((e) => e.reason)
-      : [];
+  const error = isRecord(body) && isRecord(body.error) ? body.error : {};
+  // Legacy YouTube errors and modern google.rpc.ErrorInfo use separate arrays.
+  const reasons = [error.errors, error.details].flatMap((entries) =>
+    Array.isArray(entries) ? entries.filter(isRecord).map((e) => e.reason) : [],
+  );
+  const specific = Object.keys(ACCESS_DIAGNOSTICS).find((reason) =>
+    reasons.includes(reason),
+  ) as keyof typeof ACCESS_DIAGNOSTICS | undefined;
+  if (specific)
+    return `YouTube API access failed (HTTP ${status}; reason: ${specific}). ${ACCESS_DIAGNOSTICS[specific]} Existing catalog preserved.`;
   if (
     reasons.includes("quotaExceeded") ||
     reasons.includes("dailyLimitExceeded") ||
+    reasons.includes("QUOTA_EXCEEDED") ||
+    reasons.includes("RATE_LIMIT_EXCEEDED") ||
     status === 429
   )
     return "YouTube quota exhausted or rate limited. Wait for quota reset (Pacific time) or review quota in Google Cloud; existing catalog preserved.";
   if (status === 404 || reasons.includes("playlistNotFound"))
     return `Playlist ${PLAYLIST_ID} was not found or is inaccessible. Verify the ID and playlist visibility; API-key access requires a public accessible playlist.`;
   if (status === 401 || status === 403 || status === 400)
-    return `YouTube API access failed (HTTP ${status}). Enable YouTube Data API v3, verify the key and its API/IP restrictions, and check playlist visibility. Private playlists require owner-authorized OAuth, which this API-key importer does not support.`;
+    return `YouTube API access failed (HTTP ${status}; reason: unspecified). Enable YouTube Data API v3 in the project that owns this key, verify its API/IP restrictions, and check playlist visibility. Google did not provide a recognized specific reason; check the API metrics/errors in that same project's Google Cloud Console. Private playlists require owner-authorized OAuth, which this API-key importer does not support. Existing catalog preserved.`;
   return `YouTube API request failed (HTTP ${status}). Try again later; existing catalog preserved.`;
 };
 export async function importPlaylist({

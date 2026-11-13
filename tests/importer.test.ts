@@ -121,6 +121,85 @@ describe("YouTube importer with mocked HTTP only", () => {
     ).rejects.toThrow(/Missing YOUTUBE_API_KEY/);
     expect(fetcher).not.toHaveBeenCalled();
   });
+  it.each([
+    ["accessNotConfigured", "errors", /project that owns this API key/],
+    ["SERVICE_DISABLED", "details", /project that owns this API key/],
+    ["API_KEY_SERVICE_BLOCKED", "details", /Under API restrictions/],
+    [
+      "API_KEY_HTTP_REFERRER_BLOCKED",
+      "details",
+      /website\/referrer restrictions/,
+    ],
+    ["API_KEY_IP_ADDRESS_BLOCKED", "details", /outbound public IP/],
+    ["ipRefererBlocked", "errors", /application restrictions/],
+    ["API_KEY_INVALID", "details", /already-exported YOUTUBE_API_KEY/],
+    ["keyInvalid", "errors", /already-exported YOUTUBE_API_KEY/],
+    ["API_KEY_EXPIRED", "details", /expired/],
+    ["playlistItemsNotAccessible", "errors", /owner-authorized OAuth/],
+  ])(
+    "diagnoses %s from %s without printing raw API data",
+    async (reason, source, guidance) => {
+      const body = {
+        error: {
+          status: "PERMISSION_DENIED",
+          message: `Do not print ${key}`,
+          [source]: [
+            {
+              reason,
+              metadata: { key, request: `https://example.test/?key=${key}` },
+            },
+          ],
+        },
+      };
+      const error = await importPlaylist({
+        apiKey: key,
+        fetcher: async () => response(body, 403),
+      }).catch((e: Error) => e);
+      expect(error).toBeInstanceOf(Error);
+      if (!(error instanceof Error)) throw new Error("Expected import to fail");
+      expect(error.message).toContain(`reason: ${reason}`);
+      expect(error.message).toMatch(guidance);
+      expect(error.message).not.toContain(key);
+      expect(error.message).not.toContain("example.test");
+    },
+  );
+  it("finds a specific ErrorInfo reason even when the legacy reason is generic", async () => {
+    await expect(
+      importPlaylist({
+        apiKey: key,
+        fetcher: async () =>
+          response(
+            {
+              error: {
+                errors: [{ reason: "forbidden" }],
+                details: [{ reason: "SERVICE_DISABLED" }],
+              },
+            },
+            403,
+          ),
+      }),
+    ).rejects.toThrow(/reason: SERVICE_DISABLED/);
+  });
+  it("never echoes unknown reason strings or messages, even if they contain credentials", async () => {
+    const error = await importPlaylist({
+      apiKey: key,
+      fetcher: async () =>
+        response(
+          {
+            error: {
+              message: key,
+              errors: [{ reason: key }],
+              details: [{ reason: key }],
+            },
+          },
+          403,
+        ),
+    }).catch((e: Error) => e);
+    expect(error).toBeInstanceOf(Error);
+    if (!(error instanceof Error)) throw new Error("Expected import to fail");
+    expect(error.message).toContain("reason: unspecified");
+    expect(error.message).not.toContain(key);
+  });
   it("redacts low-level failures and non-JSON bodies", async () => {
     await expect(
       importPlaylist({
