@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { importPlaylist, writeAtomic } from "./importer";
 const root = fileURLToPath(new URL("../", import.meta.url));
+const keyWasExported = process.env.YOUTUBE_API_KEY !== undefined;
 try {
   process.loadEnvFile(resolve(root, ".env"));
 } catch (error) {
@@ -12,6 +13,12 @@ try {
   }
 }
 try {
+  if (process.env.YOUTUBE_API_KEY?.trim())
+    console.log(
+      keyWasExported
+        ? "Credential source: existing YOUTUBE_API_KEY environment variable (takes precedence over .env)."
+        : "Credential source: local .env file.",
+    );
   const overrides = JSON.parse(
     await readFile(resolve(root, "data/category-overrides.json"), "utf8"),
   ) as unknown;

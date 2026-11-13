@@ -180,6 +180,92 @@ describe("YouTube importer with mocked HTTP only", () => {
       }),
     ).rejects.toThrow(/reason: SERVICE_DISABLED/);
   });
+  it.each([
+    [
+      "metadata IPv4",
+      {
+        details: [
+          {
+            reason: "API_KEY_IP_ADDRESS_BLOCKED",
+            metadata: { callerIp: "203.0.113.42" },
+          },
+        ],
+      },
+      "Google-observed caller IP: 203.0.113.42",
+    ],
+    [
+      "metadata IPv6",
+      {
+        details: [
+          {
+            reason: "API_KEY_IP_ADDRESS_BLOCKED",
+            metadata: { callerIp: "2001:db8::42" },
+          },
+        ],
+      },
+      "Google-observed caller IP: 2001:db8::42",
+    ],
+    [
+      "legacy message",
+      {
+        message: `Requests from this IP address 203.0.113.43 are blocked. Do not print ${key}`,
+      },
+      "Google-observed caller IP: 203.0.113.43",
+    ],
+    [
+      "legacy nested message",
+      {
+        errors: [
+          {
+            reason: "ipRefererBlocked",
+            message: `Requests from IP address '2001:db8::43' are blocked. ${key}`,
+          },
+        ],
+      },
+      "Google-observed caller IP: 2001:db8::43",
+    ],
+    [
+      "empty caller IP",
+      { message: `Requests from this IP address <empty> are blocked. ${key}` },
+      "Google reported an empty caller IP",
+    ],
+    ["absent caller IP", {}, "Google did not include a valid caller IP"],
+    [
+      "invalid caller IP",
+      {
+        details: [
+          {
+            reason: "API_KEY_IP_ADDRESS_BLOCKED",
+            metadata: { callerIp: `https://example.test/?key=${key}` },
+          },
+        ],
+        message: `Requests from this IP address 999.999.999.999 are blocked. ${key}`,
+      },
+      "Google did not include a valid caller IP",
+    ],
+  ])(
+    "safely diagnoses %s on Google's IP rejection",
+    async (_label, extra, expected) => {
+      const error = await importPlaylist({
+        apiKey: key,
+        fetcher: async () =>
+          response(
+            {
+              error: {
+                errors: [{ reason: "API_KEY_IP_ADDRESS_BLOCKED" }],
+                ...extra,
+              },
+            },
+            403,
+          ),
+      }).catch((e: Error) => e);
+      expect(error).toBeInstanceOf(Error);
+      if (!(error instanceof Error)) throw new Error("Expected import to fail");
+      expect(error.message).toContain(expected);
+      expect(error.message).not.toContain(key);
+      expect(error.message).not.toContain("example.test");
+    },
+  );
   it("never echoes unknown reason strings or messages, even if they contain credentials", async () => {
     const error = await importPlaylist({
       apiKey: key,

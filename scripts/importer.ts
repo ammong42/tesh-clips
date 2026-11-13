@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { isIP } from "node:net";
 import { writeFile, rename, unlink } from "node:fs/promises";
 import { dirname, join, basename } from "node:path";
 import {
@@ -42,8 +43,8 @@ export function durationSeconds(value: string): number | null {
     Number(m[4] || 0);
   return Number.isFinite(result) ? result : null;
 }
-// Only emit our own known reason labels/instructions, never API messages or raw
-// bodies: those can contain the key, request URLs, IPs, and project identifiers.
+// Only emit known labels/instructions and strictly validated caller IP literals,
+// never raw API messages, request URLs, keys, or project identifiers.
 const ACCESS_DIAGNOSTICS = {
   SERVICE_DISABLED:
     "Enable YouTube Data API v3 in the Google Cloud project that owns this API key (APIs & Services → Library). Enabling it in another project does not enable this key. Wait a few minutes after enabling, then retry.",
@@ -67,6 +68,41 @@ const ACCESS_DIAGNOSTICS = {
     "The playlist items are not accessible with this API key. Verify playlist visibility and the playlist ID. Private playlists require owner-authorized OAuth, which this API-key importer does not support.",
 } as const;
 
+function callerIpDiagnostic(error: Record<string, unknown>): string {
+  if (Array.isArray(error.details)) {
+    for (const detail of error.details) {
+      if (!isRecord(detail) || !isRecord(detail.metadata)) continue;
+      const ip = detail.metadata.callerIp;
+      if (typeof ip === "string" && isIP(ip))
+        return ` Google-observed caller IP: ${ip}. Add this exact address to the IP restrictions on the key actually used by this command.`;
+    }
+  }
+  // Older responses put the caller IP in a fixed sentence. Extract only a
+  // validated IP, never print the surrounding message (which may contain keys).
+  const messages = [
+    error.message,
+    ...(Array.isArray(error.errors)
+      ? error.errors.filter(isRecord).map((e) => e.message)
+      : []),
+  ];
+  for (const message of messages) {
+    if (typeof message !== "string") continue;
+    const match =
+      /Requests from (?:this )?IP address\s+['"]?([A-Fa-f0-9:.]+)['"]?\s+(?:are|is) blocked/i.exec(
+        message,
+      );
+    if (match && isIP(match[1]))
+      return ` Google-observed caller IP: ${match[1]}. Add this exact address to the IP restrictions on the key actually used by this command.`;
+    if (
+      /Requests from (?:this )?IP address\s+<empty>\s+(?:are|is) blocked/i.test(
+        message,
+      )
+    )
+      return " Google reported an empty caller IP. An external IP-check service cannot establish a matching address for this request; check the credential source and proxy route.";
+  }
+  return " Google did not include a valid caller IP in this rejection. Check that the key being edited is the key used by this command; an exported YOUTUBE_API_KEY overrides .env.";
+}
+
 const apiError = (status: number, body: unknown) => {
   const error = isRecord(body) && isRecord(body.error) ? body.error : {};
   // Legacy YouTube errors and modern google.rpc.ErrorInfo use separate arrays.
@@ -76,8 +112,14 @@ const apiError = (status: number, body: unknown) => {
   const specific = Object.keys(ACCESS_DIAGNOSTICS).find((reason) =>
     reasons.includes(reason),
   ) as keyof typeof ACCESS_DIAGNOSTICS | undefined;
-  if (specific)
-    return `YouTube API access failed (HTTP ${status}; reason: ${specific}). ${ACCESS_DIAGNOSTICS[specific]} Existing catalog preserved.`;
+  if (specific) {
+    const caller =
+      specific === "API_KEY_IP_ADDRESS_BLOCKED" ||
+      specific === "ipRefererBlocked"
+        ? callerIpDiagnostic(error)
+        : "";
+    return `YouTube API access failed (HTTP ${status}; reason: ${specific}). ${ACCESS_DIAGNOSTICS[specific]}${caller} Existing catalog preserved.`;
+  }
   if (
     reasons.includes("quotaExceeded") ||
     reasons.includes("dailyLimitExceeded") ||

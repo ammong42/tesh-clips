@@ -33,7 +33,7 @@ Missing key, inaccessible/missing playlist, quota/403 denial, timeout/network er
 
 ### Troubleshooting API access (HTTP 403)
 
-The importer prints a recognized Google/YouTube `reason` with instructions. Raw API messages, project identifiers, request URLs and key values are never printed. Check **the Google Cloud project that owns your key**, selected in the Console's project picker; enabling the API in a different project does not help this key.
+The importer prints a recognized Google/YouTube `reason` with instructions. For an IP restriction error, it also reports **Google's observed caller IP** when the response supplies a valid IP literal. Raw API messages, project identifiers, request URLs and key values are never printed. Check **the Google Cloud project that owns your key**, selected in the Console's project picker; enabling the API in a different project does not help this key.
 
 | Reason                                               | Action in Google Cloud Console                                                                                                                                                      |
 | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -47,6 +47,10 @@ The importer prints a recognized Google/YouTube `reason` with instructions. Raw 
 | `unspecified`                                        | Google supplied no recognized specific reason. Check the API metrics/errors in that project and the key restrictions. Share only the sanitized diagnostic, never the key or `.env`. |
 
 Retry with `npm run import:playlist`. A 403 alone does not establish that the playlist is private or that the network allowlist is blocking access.
+
+If an IP update does not fix `API_KEY_IP_ADDRESS_BLOCKED`, use the **Google-observed caller IP** from the latest importer output. An external IP-check site can take a different route than requests to Google. Add the exact observed address to the key's application restrictions; keep the API restriction set to YouTube Data API v3. Do not add guessed networks or broad IP ranges. If Google provides no valid IP or reports an empty caller IP, the importer says so rather than inventing an address.
+
+The command also prints **Credential source** without showing the key. If it says **existing YOUTUBE_API_KEY environment variable**, that binding takes precedence over `.env`; make sure you edited the key actually being used. To intentionally use `.env` instead, remove that variable in the current shell before rerunning (`unset YOUTUBE_API_KEY` in Bash/zsh, `Remove-Item Env:YOUTUBE_API_KEY` in PowerShell, or `set YOUTUBE_API_KEY=` in Windows Command Prompt). Keep your desired key in ignored `.env`; do not paste it into commands or logs.
 
 ### Classification and corrections
 
