@@ -13,9 +13,9 @@ npm ci
 npm run dev
 ```
 
-Open the address printed by Vite. If the repository is already cloned, use `git switch main` and `git pull --ff-only origin main`, then install/run as above. `npm run build` produces static output in `dist/`; `npm run preview` serves it for a local production check. Deployment is outside the prototype scope.
+Open the address printed by Vite. If the repository is already cloned, use `git switch main` and `git pull --ff-only origin main`, then install/run as above. `npm run build` produces static output in `dist/`; `npm run preview` serves it for a local production check. See [Publish and update on Netlify](#publish-and-update-on-netlify) for the manual hosting workflow.
 
-The real catalog starts empty. No playlist content has been verified or invented.
+The repository includes a user-imported catalog. You can run and build the site from that catalog without a YouTube API key; the key is needed only for manual playlist refreshes.
 
 ## Import the real playlist / manual refresh
 
@@ -111,7 +111,77 @@ Finance is no longer a topic. If you have any `finance` entries in `data/categor
 3. Add corrections keyed by the actual video IDs to `data/category-overrides.json`, then rerun the Windows refresh command above to apply them. Any of the six topic selectors stays disabled if no eligible clips have that label; Surprise Me includes every eligible clip.
 4. Run `npm run dev`. Test each available category, Play Another through a pool's exhaustion, Save/Unsave, Replay, Saved Clips and reload persistence with real videos. Confirm the player is visible and playable; import-time embeddability does not guarantee playback on every device or in every region.
 5. When ready to share the catalog for review or reuse, commit and push **only** `data/clips.json` and any intended `data/category-overrides.json` changes. These contain public video metadata, not the API key. Never commit `.env`. A successful import on one computer does not populate another checkout until the catalog is shared.
-6. For a public website, run `npm test`, `npm run check` and `npm run build`, then publish `dist/` to a static host. If the host builds from Git, use Node.js 24.5+, build command `npm run build` and output directory `dist`. The public site needs the generated catalog, not the developer's YouTube API key. Each later playlist refresh requires a new build and publication.
+6. For a public website, follow [Publish and update on Netlify](#publish-and-update-on-netlify) below. If another host builds from Git, use Node.js 24.5+, build command `npm run build` and output directory `dist`. The public site needs the generated catalog, not the developer's YouTube API key. Each later playlist refresh requires a new build and publication.
+
+## Publish and update on Netlify
+
+This workflow builds on your Windows computer and uploads the finished site manually. It does not require a backend or a YouTube API key configured on Netlify. Run commands in **PowerShell from your `tesh-clips` folder**, using Node.js 24.5+.
+
+### First publication
+
+1. Import the real catalog and review its classifications using the instructions above.
+2. Run the checks and build:
+
+   ```powershell
+   npm test
+   npm run check
+   npm run build
+   ```
+
+   Continue only if all commands succeed. The build creates `dist/`, including the imported catalog. If a command fails, fix it before uploading; an older `dist/` folder may still exist from a previous build.
+
+3. Open [Netlify Drop](https://app.netlify.com/drop) and sign in or create an account.
+4. In Windows File Explorer, open the repository folder and drag the **entire `dist` folder** into the upload area. Upload the folder containing `index.html` and `assets/`, not the repository folder or `.env`.
+5. Wait for the deployment to finish, then open the public HTTPS address Netlify provides. Test a real clip, each populated topic, Surprise Me, Save/Unsave, Replay, Play Another and saved-state persistence after reload. Keep the site's name/address for future updates.
+
+### Future updates to the existing site
+
+Use this sequence for new playlist clips, classification corrections, category changes or website code updates:
+
+1. **Get code updates when applicable.** Check your local work first:
+
+   ```powershell
+   git status --short
+   ```
+
+   Preserve intended edits to `data/clips.json`, `data/category-overrides.json` or other files before pulling. Commit them if ready to share, or keep a backup outside the checkout; do not discard your imported catalog to resolve a Git warning. When ready, pull the latest `main`:
+
+   ```powershell
+   git pull --ff-only origin main
+   ```
+
+   If Git reports a conflict or refuses the pull, stop and resolve it before continuing. Run `npm ci` if dependencies or the lockfile changed, or if dependencies are missing. A playlist-only refresh does not require pulling code or reinstalling dependencies.
+
+2. **Refresh the catalog when needed.** For new clips, changed classifier rules or edits to category overrides, use the working Windows IPv4 command:
+
+   ```powershell
+   node --dns-result-order=ipv4first --no-network-family-autoselection --use-env-proxy --import tsx scripts/import-playlist.ts
+   ```
+
+   Confirm a successful **Imported** summary, review the categories and skipped counts, and correct/reimport as necessary. For a visual/code-only update, keep the existing populated catalog and skip this step. Your local `.env` is used only during import.
+
+3. **Validate and rebuild.** Run each command and continue only if it succeeds:
+
+   ```powershell
+   npm test
+   npm run check
+   npm run build
+   ```
+
+   Always rebuild after code, catalog or override-driven classification changes. Uploading an old `dist` folder will publish old content. To inspect the production build locally before uploading:
+
+   ```powershell
+   npm run preview
+   ```
+
+   Open the address printed by Vite, check the changed content and real video playback, then press **Ctrl+C** in the terminal to stop the preview.
+
+4. **Upload to the same Netlify site.** Sign in to the Netlify dashboard, open your **existing website/project**, and open its **Deploys** page. Drag the newly built `dist` folder into that site's manual-deployment upload area. Wait until the new deployment is published. Use the existing site's Deploys page for updates; starting a new Netlify Drop site creates a different address.
+5. **Check the live update.** Visit your usual public address and use **Ctrl+F5** to refresh. Verify the updated categories/clips or visual changes, real playback, saving and reload behavior. If needed, Netlify's Deploys page lets you select a previous successful deployment and publish it again.
+
+With this manual-upload setup, editing local files, running an import, or pushing to GitHub does **not** update the live website by itself: rebuild and upload `dist` each time. You may also commit/push the catalog and intended override changes to preserve them in Git, but never commit `.env` or upload it to Netlify. No YouTube API key is needed on the static host.
+
+Favorites and listening history stay in each visitor's browser for that site address. Updating the existing site keeps the same origin and allows the app to reconcile its saved queues with the new catalog. Saves from your local development address or a different Netlify domain do not automatically transfer.
 
 ## What the prototype does
 
@@ -152,6 +222,6 @@ For a real playback smoke check after importing: choose each category; press pla
 
 ## Current integration status
 
-The user reported a successful local Windows playlist import on November 18, 2026 using the IPv4 command above with an IP-restricted key. The generated catalog has not yet been shared with the cloud checkout, whose committed `data/clips.json` remains empty. Importer behavior is also tested with mocked HTTP, and player controls/lifecycle with a mocked official-API interface. **The real imported classifications and live media playback have not yet been reviewed here.** Share the generated catalog for review and perform the real-playback smoke check above.
+The user reported a successful local Windows playlist import on November 18, 2026 using the IPv4 command above with an IP-restricted key. The user-imported catalog is now committed in `data/clips.json` with 48 clips and `keywords-v2` categorization. Importer behavior is also tested with mocked HTTP, and player controls/lifecycle with a mocked official-API interface. **The real imported classifications and live media playback have not yet been independently reviewed here.** Review the imported categories and perform the real-playback smoke check above.
 
 The earlier cloud filesystem and local-only commits were absent on November 13, 2026. This prototype was reconstructed from the implementation recorded in the conversation and revalidated before pushing. The new commit does not preserve the original `c609ef7` history. See `VALIDATION.md` for current evidence.
