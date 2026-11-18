@@ -61,6 +61,34 @@ describe("versioned local persistence", () => {
     expect(loadState(storage).favorites).toEqual(favorites);
     expect(loadState(storage).warning).toBeTruthy();
   });
+  it("ignores retired Finance queues while retaining existing history and favorites", () => {
+    const storage = memoryStorage(),
+      favorite = toggleFavorite([], { id: A, title: "Legacy saved clip" });
+    const sleep = { known: [A, B], remaining: [B], last: A };
+    const surprise = { known: [A, B], remaining: [A], last: B };
+    storage.setItem(FAVORITES_KEY, JSON.stringify(favoritesValue(favorite)));
+    storage.setItem(
+      QUEUES_KEY,
+      JSON.stringify({
+        schemaVersion: 1,
+        pools: {
+          sleep,
+          "surprise-me": surprise,
+          finance: { known: [A], remaining: [], last: A },
+        },
+      }),
+    );
+    const loaded = loadState(storage);
+    expect(loaded).toEqual({
+      favorites: favorite,
+      queues: { sleep, "surprise-me": surprise },
+      warning: null,
+    });
+    const next = draw(loaded.queues, "longevity", [A, B], () => 0.5);
+    expect(next.id).not.toBeNull();
+    expect(next.queues.sleep).toEqual(sleep);
+    expect(next.queues["surprise-me"]).toEqual(surprise);
+  });
   it("rejects duplicate/invalid IDs, unsupported schema, and impossible queue membership", () => {
     const f = { id: A, title: "Title", savedAt: "2026-10-30" };
     for (const input of [

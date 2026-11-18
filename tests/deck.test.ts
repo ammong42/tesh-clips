@@ -5,9 +5,24 @@ import {
   shuffle,
   type Queues,
 } from "../src/lib/randomDeck";
-import { eligibleIds } from "../src/lib/catalog";
+import { eligibleIds, POOLS } from "../src/lib/catalog";
 import { A, B, C, fixtureCatalog, fixtureClip } from "./fixtures";
 describe("independent shuffled decks", () => {
+  it.each(POOLS)(
+    "keeps the no-repeat guarantee independently in %s",
+    (pool) => {
+      const first = draw({}, pool, [A, B, C], () => 0.5);
+      const second = draw(first.queues, pool, [A, B, C], () => 0.5);
+      const third = draw(second.queues, pool, [A, B, C], () => 0.5);
+      const fourth = draw(third.queues, pool, [A, B, C], () => 0.5);
+      expect(new Set([first.id, second.id, third.id]).size).toBe(3);
+      expect(fourth.id).not.toBe(third.id);
+      const other = POOLS.find((p) => p !== pool)!;
+      expect(
+        draw(third.queues, other, [A, B, C], () => 0).queues[pool],
+      ).toEqual(third.queues[pool]);
+    },
+  );
   it("draws all IDs before repeating, avoids a boundary repeat, and does not mutate input", () => {
     let queues: Queues = {};
     const drawn: string[] = [];
@@ -32,12 +47,12 @@ describe("independent shuffled decks", () => {
   });
   it("does not consume other pools; serialized reload continues the same deck", () => {
     const first = draw({}, "sleep", [A, B, C], () => 0.8),
-      other = draw(first.queues, "finance", [A, C], () => 0);
+      other = draw(first.queues, "exercise", [A, C], () => 0);
     expect(other.queues.sleep).toEqual(first.queues.sleep);
     const reload = JSON.parse(JSON.stringify(other.queues)) as Queues,
       second = draw(reload, "sleep", [A, B, C], () => 0.8);
     expect(second.id).not.toBe(first.id);
-    expect(second.queues.finance).toEqual(other.queues.finance);
+    expect(second.queues.exercise).toEqual(other.queues.exercise);
   });
   it("reconciles removed IDs and appends new IDs without restoring drawn IDs", () => {
     const deck = { known: [A, B, C], remaining: [B, C, C], last: A },

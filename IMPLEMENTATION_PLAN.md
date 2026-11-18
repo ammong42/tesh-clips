@@ -22,7 +22,7 @@ At the end of each milestone: (1) run relevant validation, (2) fix obvious defec
 - Add a Node CLI importer reading `YOUTUBE_API_KEY` from environment. Read `.env` locally if using an appropriate dependency; never echo the key.
 - Use `playlistItems.list` with pagination at 50 results per page. Where feasible batch `videos.list` (50 IDs per batch) to get duration/embeddability/current metadata.
 - Robustly handle missing/private/deleted/duplicate entries and network/API errors.
-- Keyword-based multi-category classifier using title and description (title weighted more heavily). Provide `uncategorized` fallback and clear category override mapping keyed by ID.
+- Keyword-based multi-category classifier using title and description (title weighted more heavily). Transformation Tuesdays identifies the explicit named series in metadata, including hashtags. Provide `uncategorized` fallback and clear category override mapping keyed by ID.
 - Validate and atomically write `data/clips.json`; print import summary, skip counts and diagnostics. Preserve prior catalog if import fails.
 - Document manual refresh command. Never put API key in frontend.
 
@@ -31,7 +31,7 @@ At the end of each milestone: (1) run relevant validation, (2) fix obvious defec
 ## Milestone 2 — Selection and storage core
 
 **Tasks**
-- Implement pure, unit-testable shuffled deck logic for all four selection pools; save per-pool remaining IDs and last drawn ID.
+- Implement pure, unit-testable shuffled deck logic for all seven selection pools; save per-pool remaining IDs and last drawn ID.
 - Avoid immediate repeat across cycle boundaries where pool size > 1.
 - Reconcile persisted queues when catalog changes without destroying favorites or drawn progress unnecessarily.
 - Implement favorites as persisted IDs with metadata snapshot, with versioned keys and parsing/error fallback.
@@ -42,7 +42,7 @@ At the end of each milestone: (1) run relevant validation, (2) fix obvious defec
 ## Milestone 3 — Home, playback and saved views
 
 **Tasks**
-- Build responsive Home: category tiles and saved navigation, with usable empty/catalog-unavailable messages.
+- Build responsive Home: six topic tiles (Sleep, Brain Health, Longevity, Exercise, Food, Transformation Tuesdays), a visually distinct full-collection Surprise Me control, and saved navigation, with usable empty/catalog-unavailable messages.
 - Build playback page with title, source attribution, category context, visible 16:9 YouTube player, Save/Replay/Play Another/Home.
 - Embed with official IFrame API; initialize once and manage player lifecycle safely. Handle ready, ended, error, autoplay-blocked states. Never cover or hide required YouTube controls.
 - Build Saved Clips list with save/remove and ability to reopen a specific clip without a random draw.

@@ -76,9 +76,27 @@ The command also prints **Credential source** without showing the key. If it say
 
 ### Classification and corrections
 
-`scripts/categorize.ts` documents `keywords-v1`. Normalize case/punctuation; match whole words/phrases once per field. Each title match scores 2, description match 1, multi-word phrase weights are doubled; assign every topic reaching 2. Unmatched clips are `uncategorized` and eligible for Surprise Me. This is a heuristic, not a semantic or scientific verification.
+`scripts/categorize.ts` documents `keywords-v2`. Normalize case/punctuation; match whole words/phrases once per field. Each title match scores 2, description match 1, multi-word phrase weights are doubled; assign every topic reaching 2. Unmatched clips are `uncategorized` and eligible for Surprise Me. This is a heuristic, not a semantic or scientific verification.
 
-`data/category-overrides.json` maps an actual 11-character video ID to an array of `sleep`, `brain-health`, `finance`, or `uncategorized` alone. Overrides **replace** automatic tags and are reapplied on every import. Duplicate tags are removed; invalid overrides stop the import. `surprise-me` is never stored as a clip category.
+`data/category-overrides.json` maps an actual 11-character video ID to an array of `sleep`, `brain-health`, `longevity`, `exercise`, `food`, `transformation-tuesdays`, or `uncategorized` alone. Overrides **replace** automatic tags and are reapplied on every import. Duplicate tags are removed; invalid overrides stop the import. `surprise-me` is never stored as a clip category.
+
+### Current topics and category refresh
+
+| Display name            | Stored tag                | Metadata matched                                                                                                                         |
+| ----------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Sleep                   | `sleep`                   | Sleep, bedtime, circadian rhythms, insomnia and naps                                                                                     |
+| Brain Health            | `brain-health`            | Memory, cognition, focus, learning and neuroscience                                                                                      |
+| Longevity               | `longevity`               | Longevity, lifespan, healthspan and healthy aging                                                                                        |
+| Exercise                | `exercise`                | Exercise, workouts, physical activity, movement and strength                                                                             |
+| Food                    | `food`                    | Food, nutrition, meals, ingredients and beverages                                                                                        |
+| Transformation Tuesdays | `transformation-tuesdays` | Explicit Transformation Tuesday/Transformation Tuesdays series markers, including `#TransformationTuesday` and `#TransformationTuesdays` |
+| Surprise Me             | Selection mode only       | Every eligible clip, including uncategorized clips                                                                                       |
+
+Each clip may receive several labels. In `keywords-v2`, ordinary topics use the weighted threshold described above. An explicit Transformation Tuesdays series marker in **either title or description** is sufficient to assign that label; a generic transformation or Tuesday mention is not. Series clips can also match Sleep, Brain Health, Longevity, Exercise and Food. Matching uses metadata only, so review the results after reimport; it does not inspect video content or infer a Tuesday upload from dates.
+
+After pulling the category update, rerun the **working Windows IPv4 refresh command** above, then reload the app (or rebuild production output). All eligible clips are reclassified using `keywords-v2`; there is no separate classification command. The update does not replace your generated `data/clips.json` file. The new topic pools become populated according to the reimported metadata.
+
+Finance is no longer a topic. If you have any `finance` entries in `data/category-overrides.json`, replace them with appropriate current labels or remove those entries to use automatic classification. Invalid/obsolete overrides stop import with a clear message and preserve the previous catalog. Before reimport, the app keeps old Finance clips playable: it removes the retired label and uses `uncategorized` if no active labels remain. This does not silently assign new labels. Favorites and compatible Sleep, Brain Health and Surprise Me history are retained; the retired Finance queue is ignored, and new topic queues initialize on their first draw. You do not need to clear browser storage.
 
 ### Review the real classifications and run the site
 
@@ -90,14 +108,14 @@ The command also prints **Credential source** without showing the key. If it say
    $catalog.clips | Select-Object id, title, @{Name='categories';Expression={$_.categories -join ', '}} | Format-Table -Wrap
    ```
 
-3. Add corrections keyed by the actual video IDs to `data/category-overrides.json`, then rerun the Windows refresh command above to apply them. A Sleep, Brain Health or Finance selector stays disabled if no eligible clips have that label; Surprise Me includes every eligible clip.
+3. Add corrections keyed by the actual video IDs to `data/category-overrides.json`, then rerun the Windows refresh command above to apply them. Any of the six topic selectors stays disabled if no eligible clips have that label; Surprise Me includes every eligible clip.
 4. Run `npm run dev`. Test each available category, Play Another through a pool's exhaustion, Save/Unsave, Replay, Saved Clips and reload persistence with real videos. Confirm the player is visible and playable; import-time embeddability does not guarantee playback on every device or in every region.
 5. When ready to share the catalog for review or reuse, commit and push **only** `data/clips.json` and any intended `data/category-overrides.json` changes. These contain public video metadata, not the API key. Never commit `.env`. A successful import on one computer does not populate another checkout until the catalog is shared.
 6. For a public website, run `npm test`, `npm run check` and `npm run build`, then publish `dist/` to a static host. If the host builds from Git, use Node.js 24.5+, build command `npm run build` and output directory `dist`. The public site needs the generated catalog, not the developer's YouTube API key. Each later playlist refresh requires a new build and publication.
 
 ## What the prototype does
 
-- **Home:** Sleep, Brain Health, Finance and Surprise Me cards, with disabled choices for empty pools. Surprise Me includes uncategorized clips.
+- **Home:** Six topic cards (Sleep, Brain Health, Longevity, Exercise, Food and Transformation Tuesdays), plus a visually distinct full-width Surprise Me control labeled All topics, with disabled choices for empty pools. Surprise Me includes uncategorized clips.
 - **Playback:** Original imported title and channel attribution; a visible, standard YouTube player; Save/Unsave, Replay, Play Another, Home and Open on YouTube. Loading, ended, blocked-autoplay, slow/unavailable player and restricted-video states have recovery controls. Ending a clip never draws the next one automatically. Leaving or changing clips destroys the old player.
 - **Saved Clips:** Local favorites with a count, direct playback and explicit removal. Catalog-missing favorites keep their stored title and video ID. Opening a favorite and Replay never consume a random draw. Play Another from a saved clip uses Surprise Me.
 - **No repeats:** A Fisher–Yates shuffled deck per pool. Every eligible ID is drawn before reshuffling; avoid the last ID at the next cycle boundary when possible. Pools are independent, so the same video can appear in a topic and Surprise Me. A single-video pool necessarily repeats. Catalog changes remove ineligible IDs and append newly eligible IDs without unnecessarily restoring already-drawn clips.

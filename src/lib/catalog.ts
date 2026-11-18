@@ -1,5 +1,12 @@
 export const PLAYLIST_ID = "PLPwjiJlz-ZBY";
-export const TOPICS = ["sleep", "brain-health", "finance"] as const;
+export const TOPICS = [
+  "sleep",
+  "brain-health",
+  "longevity",
+  "exercise",
+  "food",
+  "transformation-tuesdays",
+] as const;
 export type Topic = (typeof TOPICS)[number];
 export type Category = Topic | "uncategorized";
 export type Pool = Topic | "surprise-me";
@@ -68,7 +75,9 @@ export function parseCatalog(value: unknown): Catalog {
       typeof clip.embeddable !== "boolean" ||
       !Array.isArray(clip.categories) ||
       !clip.categories.length ||
-      !clip.categories.every(isCategory) ||
+      !clip.categories.every(
+        (category) => isCategory(category) || category === "finance",
+      ) ||
       new Set(clip.categories).size !== clip.categories.length ||
       (clip.categories.includes("uncategorized") && clip.categories.length > 1)
     )
@@ -77,7 +86,20 @@ export function parseCatalog(value: unknown): Catalog {
       );
     ids.add(clip.id);
   }
-  return value as unknown as Catalog;
+  // A user's pre-refresh catalog may still contain the retired Finance tag.
+  // Keep those clips playable (and their favorites intact) until reimport,
+  // without assigning new topics based on assumptions in the browser.
+  const catalog = value as unknown as Catalog;
+  return {
+    ...catalog,
+    clips: catalog.clips.map((clip) => {
+      const categories = clip.categories.filter(isCategory);
+      return {
+        ...clip,
+        categories: categories.length ? categories : ["uncategorized"],
+      };
+    }),
+  };
 }
 export function eligibleIds(catalog: Catalog, pool: Pool): string[] {
   return catalog.clips

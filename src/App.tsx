@@ -3,6 +3,7 @@ import {
   parseCatalog,
   eligibleIds,
   POOLS,
+  TOPICS,
   VIDEO_ID,
   type Catalog,
   type Clip,
@@ -52,12 +53,36 @@ export const categoryInfo: Record<
     icon: "brain",
     note: "A FRESH PERSPECTIVE",
   },
-  finance: {
-    title: "Finance",
-    tagline: "Make room for what matters.",
-    description: "Practical ideas for your money and everyday decisions.",
-    icon: "wallet",
-    note: "SMALL STEPS, EVERY DAY",
+  longevity: {
+    title: "Longevity",
+    tagline: "More life in your years.",
+    description: "Explore ideas for healthy aging and living well, longer.",
+    icon: "heart",
+    note: "THE LONG VIEW",
+  },
+  exercise: {
+    title: "Exercise",
+    tagline: "A little movement matters.",
+    description:
+      "Find inspiration for getting active, building strength, and moving more.",
+    icon: "activity",
+    note: "MAKE YOUR NEXT MOVE",
+  },
+  food: {
+    title: "Food",
+    tagline: "Something good to chew on.",
+    description:
+      "Fresh perspectives on food, nutrition, and everyday eating habits.",
+    icon: "utensils",
+    note: "NOURISH YOUR CURIOSITY",
+  },
+  "transformation-tuesdays": {
+    title: "Transformation Tuesdays",
+    tagline: "Small changes. New possibilities.",
+    description:
+      "Revisit the Transformation Tuesdays series for a little inspiration to grow.",
+    icon: "transform",
+    note: "A LITTLE INSPIRATION TO CHANGE",
   },
   "surprise-me": {
     title: "Surprise Me",
@@ -308,7 +333,7 @@ export default function App({
                 </span>
               </div>
               <div className="category-grid">
-                {POOLS.map((pool) => {
+                {TOPICS.map((pool) => {
                   const info = categoryInfo[pool],
                     count = catalog ? eligibleIds(catalog, pool).length : 0;
                   return (
@@ -345,6 +370,44 @@ export default function App({
                   );
                 })}
               </div>
+            </section>
+            <section
+              className="surprise-section"
+              aria-label="Explore the whole collection"
+            >
+              <button
+                className="surprise-card"
+                aria-describedby="surprise-availability"
+                disabled={!playable}
+                onClick={() => select("surprise-me")}
+              >
+                <span className="surprise-icon">
+                  <Icon name="sparkles" />
+                </span>
+                <span className="surprise-copy">
+                  <span className="surprise-kicker">
+                    LET CURIOSITY LEAD{" "}
+                    <span className="all-topics-badge">All topics</span>
+                  </span>
+                  <h2>Surprise Me</h2>
+                  <span className="surprise-description">
+                    Can’t decide? Discover a clip from the whole collection.
+                  </span>
+                  <span
+                    className="surprise-availability"
+                    id="surprise-availability"
+                  >
+                    {isLoading
+                      ? "Loading collection…"
+                      : playable
+                        ? `${playable} ${playable === 1 ? "clip" : "clips"} to explore, including uncategorized discoveries`
+                        : "Clips coming soon"}
+                  </span>
+                </span>
+                <span className="surprise-action">
+                  Find my next clip <Icon name="arrow" />
+                </span>
+              </button>
             </section>
             {isLoading && (
               <div className="collection-note" role="status">

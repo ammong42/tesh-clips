@@ -2,6 +2,7 @@
 
 **Status:** Implementation-ready specification for an initial working prototype
 **Date:** 2026-10-30
+**Category revision:** 2026-11-18 — six topics plus a visually distinct Surprise Me selection; Finance removed.
 **Primary source playlist:** https://www.youtube.com/playlist?list=PLPwjiJlz-ZBY
 **Playlist ID:** `PLPwjiJlz-ZBY`
 
@@ -9,7 +10,7 @@
 
 Build a responsive, accessible website for discovering and revisiting short, helpful John Tesh videos on science-backed tips, life hacks, and practical advice. The experience should be *listening-oriented*, but playback must use a **visible, standard embedded YouTube video player**, not extracted audio.
 
-A visitor chooses **Sleep**, **Brain Health**, **Finance**, or **Surprise Me**; the app randomly selects a clip from the chosen category; the visitor can save it, replay it, choose another without immediate repeats, or go home. Saved clips and selection history stay on the current browser/device, with no sign-in.
+A visitor chooses **Sleep**, **Brain Health**, **Longevity**, **Exercise**, **Food**, **Transformation Tuesdays**, or **Surprise Me**; the app randomly selects a clip from the chosen category; the visitor can save it, replay it, choose another without immediate repeats, or go home. Saved clips and selection history stay on the current browser/device, with no sign-in.
 
 **Decisions already approved by the user (do not ask again):**
 - Source: the playlist URL above.
@@ -23,7 +24,7 @@ A visitor chooses **Sleep**, **Brain Health**, **Finance**, or **Surprise Me**; 
 ## 2. Goals, non-goals, success criteria
 
 ### Goals
-1. A first-time visitor understands the four category choices and can start a clip quickly.
+1. A first-time visitor understands the six topic choices and the separate Surprise Me selection and can start a clip quickly.
 2. The playback page clearly displays the actual title, category context, and visible YouTube embed.
 3. Save/unsave, replay, next clip, and home all work reliably.
 4. The site works without user accounts, an application server, or user-facing API credentials.
@@ -39,7 +40,7 @@ A visitor chooses **Sleep**, **Brain Health**, **Finance**, or **Surprise Me**; 
 
 ### Prototype acceptance summary
 - Catalog imports from the configured playlist when API access is available, with actionable setup instructions and errors otherwise.
-- All four selections behave as specified with a populated catalog; no eligible clips shows a useful empty state.
+- All seven selections behave as specified with a populated catalog; no eligible clips shows a useful empty state.
 - Saved clips survive reload in the same browser; playback history also persists.
 - No repeat before exhaustion in each eligible category, including Surprise Me.
 - Responsive layout; keyboard-accessible buttons and focus states; zero critical console errors.
@@ -52,7 +53,7 @@ A visitor chooses **Sleep**, **Brain Health**, **Finance**, or **Surprise Me**; 
 **Home**
 - Product name (working title: **A Little Life Wisdom**; branding may be adjusted).
 - Concise subtitle: "Discover something useful in just a minute." This is promotional copy, **not** a promise that every video is under one minute.
-- Primary category choices: **Sleep**, **Brain Health**, **Finance**, **Surprise Me**.
+- Primary category choices: **Sleep**, **Brain Health**, **Longevity**, **Exercise**, **Food**, **Transformation Tuesdays**, **Surprise Me**. Surprise Me must be visually distinct from the six regular topic cards, with clear full-collection context.
 - Saved Clips link/button with count when available.
 - If the catalog is empty, show a friendly setup/empty state instead of broken controls.
 - Categories with no eligible videos are visibly disabled or show an explanatory empty state.
@@ -91,15 +92,20 @@ A visitor chooses **Sleep**, **Brain Health**, **Finance**, or **Surprise Me**; 
 ### Category keys
 - `sleep`: sleep, rest, bedtime, circadian rhythms, insomnia, napping.
 - `brain-health`: memory, cognition, focus, mental sharpness, learning, neuroscience.
-- `finance`: saving money, spending, budgeting, finances, personal money management.
+- `longevity`: lifespan, healthspan, healthy aging, and living longer.
+- `exercise`: exercise, workouts, movement, physical activity, fitness, and strength.
+- `food`: food, nutrition, eating, meals, ingredients, and beverages.
+- `transformation-tuesdays`: the explicitly named Transformation Tuesday/Transformation Tuesdays series in title or description, including joined hashtags; not generic transformation advice or a Tuesday mention. Clips may also receive topic tags.
+- Finance is retired from the current taxonomy.
 - `surprise-me`: a **selection mode**, not a stored clip category; its pool includes every playable catalog clip.
 
 ### MVP categorization implementation
 - Use a **deterministic metadata-based classifier** in the local import pipeline; inspect video **title + description** (not video/audio content).
 - Normalize text case and punctuation; score documented topic keyword/phrase matches, favoring title matches over description matches. Assign any matching categories above a modest, documented threshold.
 - Allow **multiple categories per clip**. De-duplicate labels.
-- If no category meets threshold, assign an explicit internal `uncategorized` label. These clips remain eligible for Surprise Me, not one of the three topic selectors.
+- If no category meets threshold, assign an explicit internal `uncategorized` label. These clips remain eligible for Surprise Me, not one of the six topic selectors.
 - Optional editable override file such as `data/category-overrides.json` keyed by video ID. Overrides must be reproducible when refreshing the catalog; document whether entries replace or augment auto tags (recommend replace).
+- Category changes preserve favorites and compatible existing queues. Ignore retired Finance queues; display old Finance-only catalog entries as uncategorized until reimport. Reject obsolete Finance overrides with instructions to edit/remove them.
 - Retain classifier version and/or categorization method in import metadata so a refresh can be diagnosed.
 - Do not assert semantic accuracy. AI-based categorization can be added in a future phase only via an opt-in **local/offline import-time** provider configuration and without putting model keys in the web app.
 - Classifier unit tests must cover strong category matches, multi-label clips, unmatched clips, duplicates, and overrides.
@@ -107,7 +113,7 @@ A visitor chooses **Sleep**, **Brain Health**, **Finance**, or **Surprise Me**; 
 ## 5. Randomization and listening history — critical behavior
 
 ### Selection policy
-- Track a persistent **per-pool randomized queue** of video IDs for each of `sleep`, `brain-health`, `finance`, and `surprise-me`.
+- Track a persistent **per-pool randomized queue** of video IDs for each of `sleep`, `brain-health`, `longevity`, `exercise`, `food`, `transformation-tuesdays`, and `surprise-me`.
 - On first selection for a pool, create a **uniformly shuffled deck** of all currently eligible catalog IDs; draw/pop one ID on each *new random selection*.
 - No ID may be drawn again within the same pool until all eligible IDs in that pool have been drawn.
 - Once exhausted, create/shuffle a fresh deck. Where pool size > 1, avoid selecting the last randomly drawn clip as the immediate first clip of the next cycle (if possible by swapping deck positions).
@@ -153,7 +159,7 @@ A visitor chooses **Sleep**, **Brain Health**, **Finance**, or **Surprise Me**; 
   "schemaVersion": 1,
   "playlistId": "PLPwjiJlz-ZBY",
   "importedAt": "2026-10-30T00:00:00.000Z",
-  "classifierVersion": "keywords-v1",
+  "classifierVersion": "keywords-v2",
   "clips": [
     {
       "id": "EXAMPLE_ONLY_NOT_A_VIDEO_ID",
@@ -194,6 +200,7 @@ The current requirements do **not** specify a duration cutoff. **Import all elig
 - Calm, modern, clean, welcoming, and easy to use; content-first, not a flashy dashboard.
 - Distinct selectable category cards with simple icons and readable labels.
 - A primary accent color, neutral surface colors, generous whitespace and clear typography.
+- Render Surprise Me separately from the six topic cards with a different visual treatment and an explicit all-topics label.
 - Working title "A Little Life Wisdom" is provisional. Do not imply John Tesh endorses or operates this third-party prototype. Show accurate source attribution.
 - Desktop centered content, mobile-first stacking. No horizontal scrolling on ordinary phone widths.
 
@@ -250,13 +257,13 @@ Decoupling: `importer -> catalog JSON -> category selector -> random deck -> pla
 
 **C02 — Import failure:** Missing key, 403 quota/access denial, 404 playlist, empty playlist, network failure, malformed API response each produces helpful diagnostics; existing catalog stays intact.
 
-**C03 — Home:** Four primary choices are visible and keyboard accessible. Surprise Me uses all eligible clips (including uncategorized).
+**C03 — Home:** Six topic choices and a visually distinct Surprise Me control are visible and keyboard accessible (empty pools may be disabled). Surprise Me uses all eligible clips (including uncategorized).
 
 **C04 — Classification:** Title/description rules produce stable multi-label assignments and explicit uncategorized results; overrides survive refreshes.
 
 **C05 — Random deck:** For three clips in a pool, three successive draws are unique. Fourth draw starts a new cycle; if possible, fourth ID differs from third. Tests also cover 0 and 1 clips.
 
-**C06 — Pool independence:** Draws in Sleep do not alter Brain Health, Finance or Surprise Me decks.
+**C06 — Pool independence:** Draws in Sleep do not alter any of the other six selection pools.
 
 **C07 — Replay:** Restarts current video without drawing another ID.
 

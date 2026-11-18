@@ -25,7 +25,19 @@ const testCatalog = fixtureCatalog([
     title: "Synthetic sleep two",
     categories: ["sleep", "brain-health"],
   }),
-  fixtureClip(C, { title: "Synthetic money tip", categories: ["finance"] }),
+  fixtureClip(C, { title: "Synthetic exercise tip", categories: ["exercise"] }),
+  fixtureClip("TEST_LONG01", {
+    title: "Synthetic longevity idea",
+    categories: ["longevity"],
+  }),
+  fixtureClip("TEST_FOOD01", {
+    title: "Synthetic food idea",
+    categories: ["food"],
+  }),
+  fixtureClip("TEST_TRANS1", {
+    title: "Synthetic Transformation Tuesdays idea",
+    categories: ["transformation-tuesdays"],
+  }),
   fixtureClip("TEST_OTHER1", {
     title: "Synthetic unmatched idea",
     categories: ["uncategorized"],
@@ -39,6 +51,40 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe("app interactions with synthetic catalog and a mocked YouTube API", () => {
+  it("offers six topics and a separate full-collection Surprise Me selection", async () => {
+    render(
+      <App
+        loadCatalog={loadCatalog}
+        storage={memoryStorage()}
+        apiLoader={mockApiLoader}
+      />,
+    );
+    await screen.findByRole("button", { name: /\bSleep\b/ });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /\bFood\b/ })).toBeEnabled(),
+    );
+    for (const name of [
+      "Sleep",
+      "Brain Health",
+      "Longevity",
+      "Exercise",
+      "Food",
+      "Transformation Tuesdays",
+      "Surprise Me",
+    ])
+      expect(
+        screen.getByRole("button", { name: new RegExp(name) }),
+      ).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: "Finance" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("button", { name: /\bSurprise Me\b/ })
+        .closest(".category-grid"),
+    ).toBeNull();
+    expect(screen.getByText("All topics")).toBeInTheDocument();
+  });
   it("draws, saves, replays, ends, plays another and opens saved without consuming a deck; restores on reload", async () => {
     const storage = memoryStorage(),
       user = userEvent.setup(),
@@ -51,9 +97,7 @@ describe("app interactions with synthetic catalog and a mocked YouTube API", () 
           />,
         ),
       view = mount();
-    await user.click(
-      await screen.findByRole("button", { name: /FOR A QUIETER MIND Sleep/ }),
-    );
+    await user.click(await screen.findByRole("button", { name: /\bSleep\b/ }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Replay" })).toBeEnabled(),
     );
@@ -110,7 +154,7 @@ describe("app interactions with synthetic catalog and a mocked YouTube API", () 
     );
     await user.click(
       await screen.findByRole("button", {
-        name: /A FRESH PERSPECTIVE Brain Health/,
+        name: /\bBrain Health\b/,
       }),
     );
     await waitFor(() =>
@@ -146,7 +190,10 @@ describe("app interactions with synthetic catalog and a mocked YouTube API", () 
     const buttons = screen
       .getAllByRole("button")
       .filter((b) => b.classList.contains("category-card"));
-    expect(buttons).toHaveLength(4);
+    expect(buttons).toHaveLength(6);
+    expect(
+      screen.getByRole("button", { name: /\bSurprise Me\b/ }),
+    ).toBeDisabled();
     for (const button of buttons) expect(button).toBeDisabled();
     await user.click(screen.getByRole("button", { name: /Saved Clips/ }));
     expect(screen.getByText("A place for your favorites.")).toBeInTheDocument();
@@ -187,6 +234,37 @@ describe("app interactions with synthetic catalog and a mocked YouTube API", () 
     await user.click(screen.getByRole("button", { name: "Remove saved clip" }));
     expect(JSON.parse(storage.getItem(FAVORITES_KEY)!).favorites).toEqual([]);
   });
+  it("recovers a retired Finance playback URL and saved clip before the user reimports", async () => {
+    const storage = memoryStorage();
+    const favorites = toggleFavorite([], {
+      id: A,
+      title: "Synthetic legacy favorite",
+    });
+    storage.setItem(FAVORITES_KEY, JSON.stringify(favoritesValue(favorites)));
+    window.history.replaceState(null, "", `/#view=play&id=${A}&pool=finance`);
+    const legacy = {
+      ...fixtureCatalog(),
+      classifierVersion: "keywords-v1",
+      clips: [{ ...fixtureClip(A), categories: ["finance"] }],
+    };
+    render(
+      <App
+        loadCatalog={async () => legacy}
+        storage={storage}
+        apiLoader={mockApiLoader}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Replay" })).toBeEnabled(),
+    );
+    expect(screen.getByText("Surprise Me")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
+    expect(storage.getItem(QUEUES_KEY)).toBeNull();
+    expect(JSON.parse(storage.getItem(FAVORITES_KEY)!).favorites).toEqual(
+      favorites,
+    );
+    expect(screen.queryByText("Finance")).not.toBeInTheDocument();
+  });
   it("recovers from malformed catalog and invalid direct playback routes", async () => {
     window.history.replaceState(null, "", "/#view=play&id=bad");
     render(
@@ -219,7 +297,7 @@ describe("app interactions with synthetic catalog and a mocked YouTube API", () 
     ).toBeInTheDocument();
     await user.click(
       await screen.findByRole("button", {
-        name: /SMALL STEPS, EVERY DAY Finance/,
+        name: /\bExercise\b/,
       }),
     );
     await user.click(screen.getByRole("button", { name: "Save Clip" }));
@@ -236,7 +314,7 @@ describe("app interactions with synthetic catalog and a mocked YouTube API", () 
     );
     await user.click(
       await screen.findByRole("button", {
-        name: /SMALL STEPS, EVERY DAY Finance/,
+        name: /\bExercise\b/,
       }),
     );
     await waitFor(() =>
@@ -265,7 +343,7 @@ describe("app interactions with synthetic catalog and a mocked YouTube API", () 
     expect(screen.getByText("Gathering a little wisdom…")).toBeInTheDocument();
     await user.click(
       await screen.findByRole("button", {
-        name: /LET CURIOSITY LEAD Surprise Me/,
+        name: /\bSurprise Me\b/,
       }),
     );
     expect(

@@ -26,9 +26,9 @@ export const fixtureCatalog = (clips: Clip[] = []): Catalog => ({
   schemaVersion: 1,
   playlistId: PLAYLIST_ID,
   importedAt: "2026-10-30T00:00:00.000Z",
-  classifierVersion: "keywords-v1",
+  classifierVersion: "keywords-v2",
   clips,
 });
 export const A = "TEST_SLEEP1",
   B = "TEST_BRAIN1",
-  C = "TEST_MONEY1";
+  C = "TEST_EXER01";

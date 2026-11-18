@@ -3,7 +3,9 @@ export type IconName =
   | "leaf"
   | "moon"
   | "brain"
-  | "wallet"
+  | "activity"
+  | "utensils"
+  | "transform"
   | "sparkles"
   | "bookmark"
   | "arrow"
@@ -33,10 +35,19 @@ const paths: Record<IconName, ReactNode> = {
       <path d="M7 8c3 0 3 4 0 4m10-4c-3 0-3 4 0 4M7 17h1m8 0h1" />
     </>
   ),
-  wallet: (
+  activity: (
     <>
-      <path d="M20 8V5a2 2 0 0 0-2-2L5 6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h15V8H5a2 2 0 0 1 0-4" />
-      <path d="M16 12h5v5h-5a2 2 0 0 1 0-5Z" />
+      <path d="M3 12h4l3-8 4 16 3-8h4" />
+    </>
+  ),
+  utensils: (
+    <>
+      <path d="M5 3v6a3 3 0 0 0 6 0V3M8 3v18M18 3c-3 3-3 8 0 9h2V3h-2Zm2 9v9" />
+    </>
+  ),
+  transform: (
+    <>
+      <path d="M20 10a8 8 0 0 0-14-5L3 8m0-5v5h5M4 14a8 8 0 0 0 14 5l3-3m0 5v-5h-5" />
     </>
   ),
   sparkles: (

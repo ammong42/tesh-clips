@@ -9,7 +9,22 @@ const catalog = fixtureCatalog([
     title: "Synthetic sleep idea two",
     categories: ["sleep", "brain-health"],
   }),
-  fixtureClip(C, { title: "Synthetic finance idea", categories: ["finance"] }),
+  fixtureClip(C, {
+    title: "Synthetic exercise idea",
+    categories: ["exercise"],
+  }),
+  fixtureClip("TEST_LONG01", {
+    title: "Synthetic longevity idea",
+    categories: ["longevity"],
+  }),
+  fixtureClip("TEST_FOOD01", {
+    title: "Synthetic food idea",
+    categories: ["food"],
+  }),
+  fixtureClip("TEST_TRANS1", {
+    title: "Synthetic Transformation Tuesdays idea",
+    categories: ["transformation-tuesdays"],
+  }),
   fixtureClip("TEST_OTHER1", {
     title: "Synthetic uncategorized idea",
     categories: ["uncategorized"],
@@ -93,7 +108,10 @@ test("empty catalog: honest state, keyboard navigation, no YouTube requests, acc
   });
   await page.goto("/");
   await expect(page.getByText("Good things are on their way.")).toBeVisible();
-  await expect(page.locator(".category-card")).toHaveCount(4);
+  await expect(page.locator(".category-card")).toHaveCount(6);
+  await expect(
+    page.getByRole("button", { name: /\bSurprise Me\b/ }),
+  ).toBeDisabled();
   for (const button of await page.locator(".category-card").all())
     await expect(button).toBeDisabled();
   await page.keyboard.press("Tab");
@@ -124,16 +142,21 @@ test("all pools, unique draws, save/reload/replay/saved playback and browser bac
 }) => {
   await fixtures(page);
   await page.goto("/");
-  for (const name of ["Brain Health", "Finance", "Surprise Me"]) {
-    await page
-      .getByRole("button", { name: new RegExp(`${name}.*clips? to explore`) })
-      .click();
+  for (const name of [
+    "Brain Health",
+    "Longevity",
+    "Exercise",
+    "Food",
+    "Transformation Tuesdays",
+    "Surprise Me",
+  ]) {
+    await page.getByRole("button", { name: new RegExp(name) }).click();
     await expect(
       page.getByRole("button", { name: "Replay", exact: true }),
     ).toBeEnabled();
     await page.getByRole("button", { name: "Home", exact: true }).click();
   }
-  await page.getByRole("button", { name: /FOR A QUIETER MIND Sleep/ }).click();
+  await page.getByRole("button", { name: /\bSleep\b/ }).click();
   await expect(
     page.getByRole("button", { name: "Replay", exact: true }),
   ).toBeEnabled();
@@ -175,14 +198,26 @@ for (const width of [320, 390, 768, 1440]) {
     await fixtures(page);
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
-    await expect(
-      page.getByRole("button", { name: /FOR A QUIETER MIND Sleep/ }),
-    ).toBeEnabled();
+    await expect(page.getByRole("button", { name: /\bSleep\b/ })).toBeEnabled();
     await noOverflow(page);
+    await expect(page.locator(".category-grid .surprise-card")).toHaveCount(0);
+    await expect(page.locator(".all-topics-badge")).toHaveText("All topics");
+    expect(
+      await page
+        .locator(".surprise-card")
+        .evaluate((el) => getComputedStyle(el).backgroundColor),
+    ).not.toBe(
+      await page
+        .locator(".category-card")
+        .first()
+        .evaluate((el) => getComputedStyle(el).backgroundColor),
+    );
+    await page.screenshot({
+      path: `test-results/topics-${width}.png`,
+      fullPage: true,
+    });
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-    await page
-      .getByRole("button", { name: /FOR A QUIETER MIND Sleep/ })
-      .click();
+    await page.getByRole("button", { name: /\bSleep\b/ }).click();
     await expect(
       page.getByRole("button", { name: "Replay", exact: true }),
     ).toBeEnabled();
@@ -203,6 +238,62 @@ for (const width of [320, 390, 768, 1440]) {
     await expect(page.getByText("A place for your favorites.")).toBeVisible();
   });
 }
+test("Surprise Me includes uncategorized clips and has independent history from topics", async ({
+  page,
+}) => {
+  await fixtures(page);
+  await page.addInitScript(
+    (ids: string[]) => {
+      localStorage.setItem(
+        "life-wisdom:queues:v1",
+        JSON.stringify({
+          schemaVersion: 1,
+          pools: {
+            sleep: {
+              known: ["TEST_SLEEP1", "TEST_BRAIN1"],
+              remaining: ["TEST_BRAIN1"],
+              last: "TEST_SLEEP1",
+            },
+            "surprise-me": {
+              known: ids,
+              remaining: ["TEST_OTHER1"],
+              last: null,
+            },
+          },
+        }),
+      );
+    },
+    catalog.clips.map((c) => c.id),
+  );
+  await page.goto("/");
+  for (const name of [
+    "Sleep",
+    "Brain Health",
+    "Longevity",
+    "Exercise",
+    "Food",
+    "Transformation Tuesdays",
+    "Surprise Me",
+  ])
+    await expect(
+      page.getByRole("button", { name: new RegExp(name) }),
+    ).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Finance", exact: true }),
+  ).toHaveCount(0);
+  const sleep = await page.evaluate(
+    () =>
+      JSON.parse(localStorage.getItem("life-wisdom:queues:v1")!).pools.sleep,
+  );
+  await page.getByRole("button", { name: /\bSurprise Me\b/ }).click();
+  await expect(page.locator("h1")).toHaveText("Synthetic uncategorized idea");
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("life-wisdom:queues:v1")!).pools.sleep,
+    ),
+  ).toEqual(sleep);
+});
 test("player error, autoplay restriction, ended state and cleanup recovery", async ({
   page,
 }) => {
@@ -210,7 +301,7 @@ test("player error, autoplay restriction, ended state and cleanup recovery", asy
   page.on("pageerror", (e) => errors.push(e.message));
   await fixtures(page);
   await page.goto("/");
-  await page.getByRole("button", { name: /FOR A QUIETER MIND Sleep/ }).click();
+  await page.getByRole("button", { name: /\bSleep\b/ }).click();
   await expect(
     page.getByRole("button", { name: "Replay", exact: true }),
   ).toBeEnabled();

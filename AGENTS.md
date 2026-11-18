@@ -6,7 +6,9 @@ Implement a working, maintainable prototype for the John Tesh clip-discovery web
 ## Non-negotiable product rules
 - The source is `https://www.youtube.com/playlist?list=PLPwjiJlz-ZBY` (`PLPwjiJlz-ZBY`).
 - Use a **visible official YouTube embedded player**; never extract audio, hide the player, download media, bypass YouTube controls, or implement background playback.
-- Home offers **Sleep**, **Brain Health**, **Finance**, **Surprise Me**; Surprise Me draws from the entire catalog.
+- Home offers **Sleep**, **Brain Health**, **Longevity**, **Exercise**, **Food**, **Transformation Tuesdays**, **Surprise Me**. Surprise Me draws from the entire catalog and is visually separate from the six topic cards.
+- Transformation Tuesdays matches the explicitly named series in title/description (including hashtags); do not assign it to generic transformation advice or every Tuesday mention.
+- Preserve existing favorites and valid pool history when categories change. Finance is retired; legacy Finance catalog tags become uncategorized if no active tags remain, and Finance overrides must be updated before import.
 - Classify based on metadata automatically, supporting multiple labels. Unmatched clips may remain `uncategorized` and still appear in Surprise Me.
 - Favorites and per-category no-repeat queues are persisted locally in the browser, no user accounts or backend.
 - Avoid duplicate random selections within each category until that pool is exhausted. Replay or opening favorites must not consume a draw.

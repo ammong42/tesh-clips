@@ -8,6 +8,7 @@ import {
   writeAtomic,
 } from "../scripts/importer";
 import { A, B, C } from "./fixtures";
+import { TOPICS } from "../src/lib/catalog";
 const response = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status });
 const item = (id: string, position: number) => ({
@@ -27,6 +28,28 @@ const video = (id: string, extras = {}) => ({
 });
 const key = "synthetic-test-key-not-a-credential";
 describe("YouTube importer with mocked HTTP only", () => {
+  it("imports all matching new topics and series labels with classifier provenance", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(response({ items: [item(A, 0)] }))
+      .mockResolvedValueOnce(
+        response({
+          items: [
+            video(A, {
+              snippet: {
+                title:
+                  "Transformation Tuesdays: Sleep, memory, longevity, exercise and food",
+                description: "Synthetic metadata only",
+                channelTitle: "Synthetic channel",
+              },
+            }),
+          ],
+        }),
+      );
+    const { catalog } = await importPlaylist({ apiKey: key, fetcher });
+    expect(catalog.classifierVersion).toBe("keywords-v2");
+    expect(catalog.clips[0].categories).toEqual([...TOPICS]);
+  });
   it("paginates, enriches, skips duplicates/missing/nonembeddable/private, and applies overrides", async () => {
     const ids = [A, B, C, "TEST_PRIV01", "TEST_MISS01"],
       fetcher = vi
@@ -50,10 +73,10 @@ describe("YouTube importer with mocked HTTP only", () => {
     const { catalog, report } = await importPlaylist({
       apiKey: key,
       fetcher,
-      overrides: { [A]: ["finance"] },
+      overrides: { [A]: ["food"] },
     });
     expect(catalog.clips.map((c) => c.id)).toEqual([A, B]);
-    expect(catalog.clips[0].categories).toEqual(["finance"]);
+    expect(catalog.clips[0].categories).toEqual(["food"]);
     expect(catalog.clips[1].categories).toEqual(["sleep", "brain-health"]);
     expect(catalog.clips[0].durationSeconds).toBe(182);
     expect(

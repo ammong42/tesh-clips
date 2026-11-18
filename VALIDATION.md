@@ -24,3 +24,16 @@ The product scope remains unchanged: Vite/React/TypeScript, manual YouTube Data 
 Importer HTTP and YouTube player behavior are tested with isolated synthetic data and API doubles; they do not establish live playlist access or real media playback. No John Tesh IDs or metadata were invented. Follow README's numbered API setup, provide a restricted key securely and allow `www.googleapis.com`, run the importer and then perform the documented real-video smoke check. Real-device/screen-reader review remains a separate follow-up.
 
 The cloud draft's installation/startup instructions were saved during initial setup; saving a draft does not publish or prove restoration of a prepared snapshot. GitHub is the durable source for future checkouts once the authorized push succeeds. The tool result and chat handoff, rather than this pre-push document, establish whether that push succeeded.
+
+## Category revision — November 18, 2026
+
+Replaced Finance with Longevity, Exercise, Food and Transformation Tuesdays, retaining Sleep and Brain Health. Surprise Me remains an independent whole-catalog selection pool (including uncategorized clips) and is now a separate full-width dark green control labeled All topics below the six topic cards. Classifier provenance advances to `keywords-v2`. Multiple labels remain supported; explicit Transformation Tuesday(s) series markers/hashtags match in title or description, while generic transformation or Tuesday mentions do not.
+
+Existing favorites, compatible queues and legacy Finance playback URLs are covered by migration tests. Legacy Finance catalog tags are removed in memory, with uncategorized fallback if no active tags remain; source catalog entries are not rewritten by the browser. Retired Finance queues are ignored, and obsolete Finance overrides produce actionable import errors. The generated `data/clips.json` is unchanged in this revision to avoid conflicting with the user's local import.
+
+- `npm test`: **107 passed**, 7 files; no skipped tests.
+- `npm run check`, `npm run build`, `npm run format:check`, `git diff --check`: passed.
+- `npm run test:browser`: **8 passed**. Includes all seven selections, independent no-repeat history, uncategorized Surprise Me selection, save/replay/reload and player lifecycle, plus responsive/axe checks at 320, 390, 768 and 1440px. The first accessibility scan found explicit card labels omitted other visible button text; natural content-based names corrected this, and the final scans passed without violations.
+- Desktop and phone screenshots were inspected. Long Transformation Tuesdays labels wrap without horizontal overflow; Surprise Me has a separate layout, background and explicit all-topics context.
+
+The new classification accuracy on real playlist metadata still needs review after the user reruns the documented Windows IPv4 import command. Browser checks use synthetic fixtures/API doubles, not live YouTube playback. No credentials or synthetic production catalog entries were added.
