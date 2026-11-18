@@ -24,12 +24,30 @@ The real catalog starts empty. No playlist content has been verified or invented
 3. In **APIs & Services → Credentials**, create an **API key**. Restrict its API access to **YouTube Data API v3**. For this local Node CLI, use an IP-address application restriction matching your machine's outbound public IP if it is stable. Browser HTTP-referrer restrictions will not work for a Node CLI. For a cloud proxy, use the proxy's outbound IP. Never make the key public or use a `VITE_` prefix.
 4. Copy `.env.example` to `.env` and enter your key there (the file is git-ignored), or set `YOUTUBE_API_KEY` in the local process environment. Never paste a key into source code, commits, or chat.
 5. If running inside a network-restricted **cloud environment**, allow HTTPS to `www.googleapis.com` in that environment's network settings. When running on your own computer, you normally do not need to change Codex's cloud settings. Keep TLS verification and inherited proxy/CA settings enabled. `npm run import:playlist` uses the supported Node environment-proxy option.
-6. Run `npm run import:playlist` from the repository. It paginates the configured playlist `PLPwjiJlz-ZBY`, fetches details in batches of 50, skips invalid/missing/private/non-embeddable videos, classifies metadata, and atomically replaces `data/clips.json` only after full validation. It does not filter by duration. The skipped-count/duration report is saved to ignored `data/import-report.json`.
+6. Run `npm run import:playlist` from the repository, or use the **Windows IPv4 command below** if IP-restricted access fails with the default command. It paginates the configured playlist `PLPwjiJlz-ZBY`, fetches details in batches of 50, skips invalid/missing/private/non-embeddable videos, classifies metadata, and atomically replaces `data/clips.json` only after full validation. It does not filter by duration. The skipped-count/duration report is saved to ignored `data/import-report.json`.
 7. Run `npm run dev`. After a later manual refresh, reload the dev app or rerun `npm run build` for static output. No browser API key or public refresh endpoint is used.
 
 `playlistItems.list` and `videos.list` typically cost 1 quota unit per call. A project commonly starts with 10,000 units/day; verify current quota in Google Cloud. Quota resets at midnight Pacific time. One page and one detail batch cost approximately 2 units per 50 videos. A private playlist cannot be read by this API-key-only importer; ask its owner to make it accessible or supply a small catalog of **real, independently verified** IDs and metadata in the documented schema. OAuth is outside this prototype. Do not scrape or bypass restrictions.
 
 Missing key, inaccessible/missing playlist, quota/403 denial, timeout/network errors, malformed responses, and zero eligible clips all fail with diagnostics and preserve the prior catalog. Metadata embeddability is only a point-in-time signal: region, age, device and later privacy changes can still prevent playback.
+
+### Manual refresh on Windows with an IP-restricted key
+
+The following command was reported to work on the user's Windows computer with the existing allowed public IPv4 address, after the default command received a 403. Run it in **PowerShell from the `tesh-clips` repository folder** whenever you want to refresh the playlist:
+
+```powershell
+node --dns-result-order=ipv4first --no-network-family-autoselection --use-env-proxy --import tsx scripts/import-playlist.ts
+```
+
+It prefers IPv4 DNS results and disables Node's automatic IPv4/IPv6 connection selection for this process. It keeps the existing proxy support and reads the same ignored `.env` file. It does not change Windows network settings or remove your key's restrictions. `npm run import:playlist` remains the general command; its flags have not been changed globally.
+
+On success, inspect the **Imported** and **Skipped** summary. The command refreshes and automatically categorizes all eligible videos across all playlist pages, reapplies `data/category-overrides.json`, and writes `data/clips.json` plus the local `data/import-report.json`. No separate classification command or browser API call is needed. Removed, missing, private and non-embeddable videos are skipped and reported; metadata-based categories are not a guarantee of semantic accuracy.
+
+To use the refreshed catalog:
+
+- For local development, start `npm run dev` and open the address Vite prints. If it is already running, reload the page after the import.
+- For production output, run `npm run build` again. Use `npm run preview` to inspect that build locally; a previously built or hosted site does not automatically receive the new catalog.
+- Keep the API restriction set to **YouTube Data API v3** and the appropriate public IPv4 address allowed. If your ISP changes that address, update the key restriction before the next import.
 
 ### Troubleshooting API access (HTTP 403)
 
@@ -61,6 +79,21 @@ The command also prints **Credential source** without showing the key. If it say
 `scripts/categorize.ts` documents `keywords-v1`. Normalize case/punctuation; match whole words/phrases once per field. Each title match scores 2, description match 1, multi-word phrase weights are doubled; assign every topic reaching 2. Unmatched clips are `uncategorized` and eligible for Surprise Me. This is a heuristic, not a semantic or scientific verification.
 
 `data/category-overrides.json` maps an actual 11-character video ID to an array of `sleep`, `brain-health`, `finance`, or `uncategorized` alone. Overrides **replace** automatic tags and are reapplied on every import. Duplicate tags are removed; invalid overrides stop the import. `surprise-me` is never stored as a clip category.
+
+### Review the real classifications and run the site
+
+1. Confirm the importer finished successfully with a nonzero **Imported** count. Every imported entry already has category labels. A clip can have multiple topic labels; unmatched clips receive `uncategorized` and remain available through Surprise Me.
+2. Review `data/clips.json`, focusing on unmatched entries and ambiguous titles/descriptions. For a readable list in PowerShell:
+
+   ```powershell
+   $catalog = Get-Content .\data\clips.json -Raw | ConvertFrom-Json
+   $catalog.clips | Select-Object id, title, @{Name='categories';Expression={$_.categories -join ', '}} | Format-Table -Wrap
+   ```
+
+3. Add corrections keyed by the actual video IDs to `data/category-overrides.json`, then rerun the Windows refresh command above to apply them. A Sleep, Brain Health or Finance selector stays disabled if no eligible clips have that label; Surprise Me includes every eligible clip.
+4. Run `npm run dev`. Test each available category, Play Another through a pool's exhaustion, Save/Unsave, Replay, Saved Clips and reload persistence with real videos. Confirm the player is visible and playable; import-time embeddability does not guarantee playback on every device or in every region.
+5. When ready to share the catalog for review or reuse, commit and push **only** `data/clips.json` and any intended `data/category-overrides.json` changes. These contain public video metadata, not the API key. Never commit `.env`. A successful import on one computer does not populate another checkout until the catalog is shared.
+6. For a public website, run `npm test`, `npm run check` and `npm run build`, then publish `dist/` to a static host. If the host builds from Git, use Node.js 24.5+, build command `npm run build` and output directory `dist`. The public site needs the generated catalog, not the developer's YouTube API key. Each later playlist refresh requires a new build and publication.
 
 ## What the prototype does
 
@@ -101,6 +134,6 @@ For a real playback smoke check after importing: choose each category; press pla
 
 ## Current integration status
 
-The import command exits with an actionable **Missing YOUTUBE_API_KEY** diagnostic when no key is provided. No source metadata was verified, and the production catalog remains empty. Importer behavior is tested with mocked HTTP, and the player controls/lifecycle with a mocked official-API interface. **Live playlist import and live media playback remain unverified.** Complete the numbered API setup to populate the collection, then perform the real-playback smoke check.
+The user reported a successful local Windows playlist import on November 18, 2026 using the IPv4 command above with an IP-restricted key. The generated catalog has not yet been shared with the cloud checkout, whose committed `data/clips.json` remains empty. Importer behavior is also tested with mocked HTTP, and player controls/lifecycle with a mocked official-API interface. **The real imported classifications and live media playback have not yet been reviewed here.** Share the generated catalog for review and perform the real-playback smoke check above.
 
 The earlier cloud filesystem and local-only commits were absent on November 13, 2026. This prototype was reconstructed from the implementation recorded in the conversation and revalidated before pushing. The new commit does not preserve the original `c609ef7` history. See `VALIDATION.md` for current evidence.
